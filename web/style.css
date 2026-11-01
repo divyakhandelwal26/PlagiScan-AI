@@ -1055,3 +1055,128 @@ textarea:focus {
         grid-template-columns: 1fr;
     }
 }
+
+/* =====================================
+   LIGHT MODE / DARK MODE TOGGLE
+===================================== */
+
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: 1px solid #8055dc;
+    border-radius: 25px;
+    background: #211a35;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+    transform: translateY(-2px);
+    background: #38275a;
+}
+
+/* LIGHT THEME */
+
+body.light-mode {
+    background: #f5f3ff;
+    color: #29213d;
+}
+
+body.light-mode .navbar,
+body.light-mode .history-section,
+body.light-mode .analytics-section {
+    background: #ffffff;
+    border-color: #e2d8f5;
+}
+
+body.light-mode .navbar a,
+body.light-mode .history-heading h2,
+body.light-mode .analytics-heading h2 {
+    color: #35245c;
+}
+
+body.light-mode .hero-content h1,
+body.light-mode .hero-content p,
+body.light-mode .analytics-card p,
+body.light-mode .history-heading p {
+    color: #51456b;
+}
+
+body.light-mode .checker-card,
+body.light-mode .analytics-card,
+body.light-mode .analytics-chart-card,
+body.light-mode .history-item,
+body.light-mode .match-preview {
+    background: #ffffff;
+    border-color: #e2d8f5;
+}
+
+body.light-mode .document,
+body.light-mode textarea,
+body.light-mode input {
+    background: #faf9ff;
+    color: #29213d;
+    border-color: #d8c9f0;
+}
+
+body.light-mode .highlighted-text {
+    color: #35245c;
+}
+
+body.light-mode .analytics-card h3,
+body.light-mode .analytics-chart-card h3,
+body.light-mode .history-item h3,
+body.light-mode .history-item p {
+    color: #35245c;
+}
+
+body.light-mode .upload-area {
+    background: #f5f0ff;
+    border-color: #b49aff;
+}
+
+body.light-mode .upload-area label {
+    color: #7045c5;
+}
+
+body.light-mode .theme-toggle {
+    background: #f0eaff;
+    color: #50318a;
+}
+
+body.light-mode .theme-toggle:hover {
+    background: #e4d8ff;
+}
+
+body.light-mode .secondary-button {
+    color: #7045c5;
+    border-color: #8055dc;
+}
+
+body.light-mode .empty-history {
+    color: #68558a;
+}
+
+/* SMOOTH THEME TRANSITION */
+
+body,
+body * {
+    transition:
+        background-color 0.25s ease,
+        color 0.25s ease,
+        border-color 0.25s ease;
+}
+
+/* MOBILE BUTTON */
+
+@media (max-width: 600px) {
+    .theme-toggle {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+}
