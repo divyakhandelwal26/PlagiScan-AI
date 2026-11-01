@@ -1,0 +1,491 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="description" content="PlagiScan AI - A C++ powered plagiarism detection and document similarity analysis platform.">
+
+    <title>PlagiScan AI | Smart Plagiarism Detector</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- NAVIGATION BAR -->
+    <header class="navbar">
+
+        <a href="#home" class="logo">
+            <span class="logo-icon">P</span>
+            PlagiScan <span class="logo-highlight">AI</span>
+        </a>
+
+        <nav class="nav-links">
+            <a href="#home">Home</a>
+            <a href="#checker">Checker</a>
+            <a href="#features">Features</a>
+            <a href="#about">About</a>
+        </nav>
+
+        <a href="#checker" class="nav-button">
+            Start Checking <span>→</span>
+        </a>
+
+    </header>
+
+    <!-- SCAN HISTORY SECTION -->
+<!-- ANALYTICS DASHBOARD -->
+
+<section class="analytics-section" id="analyticsSection">
+
+    <div class="analytics-heading">
+        <h2>Analytics Dashboard</h2>
+        <p>Overview of your plagiarism detection activity.</p>
+    </div>
+
+    <div class="analytics-grid">
+
+        <div class="analytics-card">
+            <p>Total Scans</p>
+            <h3 id="totalScans">0</h3>
+        </div>
+
+        <div class="analytics-card">
+            <p>Average Similarity</p>
+            <h3 id="averageSimilarity">0%</h3>
+        </div>
+
+        <div class="analytics-card">
+            <p>Average Originality</p>
+            <h3 id="averageOriginality">0%</h3>
+        </div>
+
+        <div class="analytics-card">
+            <p>Highest Similarity</p>
+            <h3 id="highestSimilarity">0%</h3>
+        </div>
+
+    </div>
+
+    <div class="analytics-chart-card">
+        <h3>Recent Scan Activity</h3>
+        <canvas id="scanChart"></canvas>
+    </div>
+
+</section>
+
+<section class="history-section" id="historySection">
+    <div class="history-heading">
+        <div>
+            <h2>Scan History</h2>
+            <p>View your previous document comparisons.</p>
+        </div>
+
+        <button id="clearHistory" class="secondary-button" type="button">
+            Clear History
+        </button>
+    </div>
+
+    <div id="historyList" class="history-list">
+        <p class="empty-history">No previous scans yet.</p>
+    </div>
+</section>
+
+
+    <main>
+
+        <!-- HERO SECTION -->
+        <section class="hero" id="home">
+
+            <div class="hero-content">
+
+                <div class="badge">
+                    <span class="status-dot"></span>
+                    C++ POWERED TEXT ANALYSIS
+                </div>
+
+                <h1>
+                    Detect Plagiarism.
+                    <br>
+                    Protect <span>Originality.</span>
+                </h1>
+
+                <p>
+                    Analyze documents, discover matching passages,
+                    and measure textual similarity with PlagiScan AI.
+                    Make your content more transparent and original.
+                </p>
+
+                <div class="hero-actions">
+
+                    <a href="#checker" class="primary-button">
+                        Start Checking <span>→</span>
+                    </a>
+
+                    <a href="#features" class="secondary-button">
+                        Explore Features
+                    </a>
+
+                </div>
+
+                <div class="hero-note">
+                    <span>✓</span> Tokenization
+                    <span>✓</span> Hashing
+                    <span>✓</span> Pattern Matching
+                    <span>✓</span> LCS
+                </div>
+
+            </div>
+
+            <div class="hero-visual">
+
+                <div class="visual-card">
+
+                    <div class="visual-top">
+                        <span class="visual-dot"></span>
+                        <span class="visual-dot"></span>
+                        <span class="visual-dot"></span>
+                        <span class="visual-title">PlagiScan Analysis</span>
+                    </div>
+
+                    <div class="document-icon">▤</div>
+
+                    <h3>Document Analysis</h3>
+
+                    <p>Analyzing textual patterns...</p>
+
+                    <div class="visual-progress">
+                        <div></div>
+                    </div>
+
+                    <div class="visual-bottom">
+                        <span>Smart Detection</span>
+                        <span class="visual-check">✓</span>
+                    </div>
+
+                </div>
+
+                <div class="floating-tag">
+                    ✦ Intelligent Comparison
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- CHECKER SECTION -->
+        <section class="checker-section" id="checker">
+
+            <div class="section-heading">
+
+                <span class="eyebrow">DOCUMENT ANALYSIS</span>
+
+                <h2>Compare Two Documents</h2>
+
+                <p>
+                    Upload your text by pasting it into the boxes below
+                    and let PlagiScan AI analyze the similarities.
+                </p>
+
+            </div>
+
+
+            <div class="document-grid">
+
+                <!-- DOCUMENT 1 -->
+                <div class="document-card">
+
+                    <div class="document-header">
+                        <div>
+                            <span class="document-label">01</span>
+                            <label for="document1">Original Document</label>
+                        </div>
+
+                        <span class="document-icon-small">▤</span>
+                    </div>
+                    <div class="upload-area">
+                        <label for="file1">Upload Document 1 (.txt)</label>
+                        <input type="file" id="file1" accept=".txt,text/plain">
+                    </div>
+                    <textarea
+                        id="document1"
+                        placeholder="Paste your first document here..."
+                    ></textarea>
+                    <div id="matchPreview1" class="match-preview hidden">
+                <h4>Matching Text Preview</h4>
+                        <div class="highlighted-text"></div>
+                    </div>
+
+                    <div class="document-footer">
+                        <span id="count1">0 words</span>
+                        <span>Document 01</span>
+                    </div>
+
+                </div>
+
+
+                <!-- DOCUMENT 2 -->
+                <div class="document-card">
+
+                    <div class="document-header">
+                        <div>
+                            <span class="document-label">02</span>
+                            <label for="document2">Comparison Document</label>
+                        </div>
+
+                        <span class="document-icon-small">▤</span>
+                    </div>
+                    <div class="upload-area">
+                        <label for="file2">Upload Document 2 (.txt)</label>
+                        <input type="file" id="file2" accept=".txt,text/plain">
+                    </div>
+
+                    <textarea
+                        id="document2"
+                        placeholder="Paste your second document here..."
+                    ></textarea>
+                    <div id="matchPreview2" class="match-preview hidden">
+                    <h4>Matching Text Preview</h4>
+                        <div class="highlighted-text"></div>
+                        </div>
+
+                    <div class="document-footer">
+                        <span id="count2">0 words</span>
+                        <span>Document 02</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ACTION BUTTONS -->
+            <div class="action-row">
+
+                <button
+                    id="compareButton"
+                    class="primary-button"
+                    type="button"
+                >
+                    ✦ Analyze Documents
+                </button>
+
+                <button
+                    id="clearButton"
+                    class="secondary-button"
+                    type="button"
+                >
+                    Clear All
+                </button>
+
+            </div>
+
+
+            <p class="notice" id="engineStatus">
+                <span class="status-dot"></span>
+                Ready to analyze documents.
+            </p>
+
+
+            <!-- RESULTS SECTION -->
+            <section id="results" class="results hidden">
+
+                <div class="section-heading">
+                    <span class="eyebrow">ANALYSIS COMPLETE</span>
+                    <h2>Your Similarity Report</h2>
+                    <p>Here is the comparison between your documents.</p>
+                </div>
+
+
+                <div class="results-grid">
+
+                    <div class="score-card">
+
+                        <span class="result-label">TEXTUAL SIMILARITY</span>
+
+                        <strong id="score">0%</strong>
+
+                        <div class="progress-track">
+                            <div id="progress" class="progress"></div>
+                        </div>
+
+                    </div>
+
+
+                    <div class="score-card originality-card">
+
+                        <span class="result-label">ORIGINALITY</span>
+
+                        <strong id="originalityScore">0%</strong>
+
+                        <p>Calculated as 100% minus similarity.</p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="matching-card">
+
+                    <h3>
+                        <span>✦</span> Matching Passages
+                    </h3>
+
+                    <ul id="matches"></ul>
+
+                </div>
+
+
+                <p <div class="report-actions">
+                        <button id="downloadReport" class="primary-button" type="button">
+                            <span>↓</span> Download PDF Report
+                        </button>
+                    </div>
+                </p>
+
+            </section>
+
+        </section>
+
+
+        <!-- FEATURES SECTION -->
+        <section class="features-section" id="features">
+
+            <div class="section-heading">
+
+                <span class="eyebrow">POWERED BY ALGORITHMS</span>
+
+                <h2>Intelligence Behind Every Scan</h2>
+
+                <p>
+                    Combining data structures and algorithms
+                    to perform efficient text comparison.
+                </p>
+
+            </div>
+
+
+            <div class="feature-grid">
+
+                <article class="feature-card">
+
+                    <div class="feature-number">01</div>
+
+                    <h3>Smart Tokenization</h3>
+
+                    <p>
+                        Breaks text into individual words
+                        and prepares content for comparison.
+                    </p>
+
+                </article>
+
+
+                <article class="feature-card">
+
+                    <div class="feature-number">02</div>
+
+                    <h3>Hash-Based Matching</h3>
+
+                    <p>
+                        Uses hashing techniques to identify
+                        matching word sequences efficiently.
+                    </p>
+
+                </article>
+
+
+                <article class="feature-card">
+
+                    <div class="feature-number">03</div>
+
+                    <h3>Pattern Matching</h3>
+
+                    <p>
+                        Uses pattern-searching techniques
+                        to locate matching text.
+                    </p>
+
+                </article>
+
+
+                <article class="feature-card">
+
+                    <div class="feature-number">04</div>
+
+                    <h3>LCS Analysis</h3>
+
+                    <p>
+                        Applies the Longest Common Subsequence
+                        technique to compare documents.
+                    </p>
+
+                </article>
+
+            </div>
+
+        </section>
+
+
+        <!-- ABOUT SECTION -->
+        <section class="about-section" id="about">
+
+            <span class="eyebrow">ABOUT THE PROJECT</span>
+
+            <h2>
+                Built with Algorithms.
+                <span>Designed for Originality.</span>
+            </h2>
+
+            <p>
+                PlagiScan AI is a C++ powered plagiarism detection
+                project that explores text similarity through
+                tokenization, hashing, pattern matching and
+                dynamic programming.
+            </p>
+
+            <div class="technology-list">
+
+                <span>C++</span>
+                <span>HTML5</span>
+                <span>CSS3</span>
+                <span>JavaScript</span>
+                <span>Data Structures</span>
+                <span>Algorithms</span>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- FOOTER -->
+    <footer class="footer">
+
+        <a href="#home" class="logo">
+            <span class="logo-icon">P</span>
+            PlagiScan <span class="logo-highlight">AI</span>
+        </a>
+
+        <p>
+            Built with C++, HTML, CSS and JavaScript.
+        </p>
+
+        <p class="footer-note">
+            Educational project · Similarity does not establish misconduct.
+        </p>
+
+        <a href="#home" class="back-to-top">Back to top ↑</a>
+
+    </footer>
+
+
+    <!-- JAVASCRIPT -->
+    <script src="script.js"></script>
+
+</body>
+</html>

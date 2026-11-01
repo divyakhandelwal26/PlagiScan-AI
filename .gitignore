@@ -1,0 +1,13 @@
+
+# Compiled executable files
+*.exe
+*.out
+*.o
+*.obj
+
+# Temporary files
+tempCodeRunnerFile*
+*.tmp
+
+# IDE files
+.vscode/
