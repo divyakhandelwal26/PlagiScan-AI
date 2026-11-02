@@ -1,47 +1,36 @@
-
 // ==========================================
 // PLAGISCAN AI - JAVASCRIPT
 // ==========================================
 
+// C++ BACKEND URL
+const API_URL = "https://plagiscan-ai-jxx8.onrender.com";
+
 // GET HTML ELEMENTS
+const $ = (id) => document.getElementById(id);
 
-const document1 = document.getElementById("document1");
-const document2 = document.getElementById("document2");
+const document1 = $("document1");
+const document2 = $("document2");
 
-const file1 = document.getElementById("file1");
-const file2 = document.getElementById("file2");
+const file1 = $("file1");
+const file2 = $("file2");
 
-const historyList = document.getElementById("historyList");
-const clearHistoryButton = document.getElementById("clearHistory");
+const compareButton = $("compareButton");
+const clearButton = $("clearButton");
+
+const resultsSection = $("results");
+const scoreElement = $("score");
+const originalityElement = $("originalityScore");
+
+const progressBar = $("progress");
+const matchesList = $("matches");
+const engineStatus = $("engineStatus");
+
+const matchPreview1 = $("matchPreview1");
+const matchPreview2 = $("matchPreview2");
 
 const HISTORY_KEY = "plagiscan_scan_history";
 
-const totalScansElement = document.getElementById("totalScans");
-const averageSimilarityElement = document.getElementById("averageSimilarity");
-const averageOriginalityElement = document.getElementById("averageOriginality");
-const highestSimilarityElement = document.getElementById("highestSimilarity");
-const scanChart = document.getElementById("scanChart");
-
-const count1 = document.getElementById("count1");
-const count2 = document.getElementById("count2");
-
-const compareButton = document.getElementById("compareButton");
-const clearButton = document.getElementById("clearButton");
-
-const resultsSection = document.getElementById("results");
-const scoreElement = document.getElementById("score");
-const originalityElement = document.getElementById("originalityScore");
-
-const progressBar = document.getElementById("progress");
-const matchesList = document.getElementById("matches");
-const matchPreview1 = document.getElementById("matchPreview1");
-const matchPreview2 = document.getElementById("matchPreview2");
-
-const engineStatus = document.getElementById("engineStatus");
-
-// C++ BACKEND URL
-
-const API_URL = "https://plagiscan-ai-jxx8.onrender.com";
+let latestResult = null;
 
 
 // ==========================================
@@ -49,56 +38,73 @@ const API_URL = "https://plagiscan-ai-jxx8.onrender.com";
 // ==========================================
 
 function updateWordCounts() {
-
     const text1 = document1.value.trim();
     const text2 = document2.value.trim();
 
-    count1.textContent =
-        (text1 ? text1.split(/\s+/).length : 0) + " words";
+    $("count1").textContent =
+        `${text1 ? text1.split(/\s+/).length : 0} words`;
 
-    count2.textContent =
-        (text2 ? text2.split(/\s+/).length : 0) + " words";
+    $("count2").textContent =
+        `${text2 ? text2.split(/\s+/).length : 0} words`;
 }
 
+
+// ==========================================
+// UPDATE ENGINE STATUS
+// ==========================================
+
+function setStatus(message, state = "neutral") {
+    engineStatus.textContent = message;
+    engineStatus.dataset.state = state;
+}
+
+
+// ==========================================
 // DOCUMENT UPLOAD FUNCTION
+// ==========================================
 
-function uploadTextFile(fileInput, textArea) {
+function readTextFile(input, target) {
 
-    fileInput.addEventListener("change", function () {
+    input.addEventListener("change", () => {
 
-        const file = fileInput.files[0];
+        const file = input.files && input.files[0];
 
         if (!file) return;
 
         if (!file.name.toLowerCase().endsWith(".txt")) {
+
             alert("Please upload a .txt file only.");
-            fileInput.value = "";
+
+            input.value = "";
+
             return;
         }
 
         const reader = new FileReader();
 
-        reader.onload = function (event) {
+        reader.onload = () => {
 
-            textArea.value = event.target.result;
+            target.value = String(reader.result || "");
 
-            textArea.dispatchEvent(new Event("input"));
-
-            alert(file.name + " uploaded successfully!");
+            target.dispatchEvent(new Event("input"));
 
         };
 
-        reader.onerror = function () {
+        reader.onerror = () => {
+
             alert("Unable to read this file.");
+
         };
 
         reader.readAsText(file);
 
     });
+
 }
 
-uploadTextFile(file1, document1);
-uploadTextFile(file2, document2);
+readTextFile(file1, document1);
+readTextFile(file2, document2);
+
 
 // ==========================================
 // CHECK C++ ENGINE CONNECTION
@@ -111,32 +117,380 @@ async function checkEngine() {
         const response = await fetch(`${API_URL}/health`);
 
         if (!response.ok) {
-            throw new Error("Server health check failed.");
+            throw new Error("Health check failed");
         }
 
         const data = await response.json();
 
-        if (data.status === "running" && data.engine === "C++") {
-
-            engineStatus.textContent =
-                "Connected to the C++ plagiarism detection engine.";
-
-            engineStatus.style.color = "#39d99a";
-
-        } else {
-
-            throw new Error("Unexpected server response.");
-
+        if (
+            data.status !== "running" ||
+            data.engine !== "C++"
+        ) {
+            throw new Error("Unexpected engine response");
         }
+
+        setStatus(
+            "Connected to the C++ plagiarism detection engine.",
+            "success"
+        );
 
     } catch (error) {
 
-        engineStatus.textContent =
-            "C++ engine is offline. Start your backend server.";
-
-        engineStatus.style.color = "#f87171";
+        setStatus(
+            "C++ analysis engine is currently unavailable. Please try again later.",
+            "error"
+        );
 
     }
+
+}
+
+
+// ==========================================
+// HIGHLIGHT MATCHING TEXT
+// ==========================================
+
+function showHighlights(originalText, passages, preview) {
+
+    const container = preview.querySelector(".highlighted-text");
+
+    container.replaceChildren();
+
+    const valid = [
+        ...new Set(
+            passages.filter(
+                passage =>
+                    typeof passage === "string" &&
+                    passage.trim()
+            )
+        )
+    ].sort((a, b) => b.length - a.length);
+
+    if (!valid.length) {
+
+        preview.classList.add("hidden");
+
+        return;
+    }
+
+    const escaped = valid.map(
+        passage =>
+            passage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    );
+
+    const pattern = new RegExp(
+        `(${escaped.join("|")})`,
+        "gi"
+    );
+
+    let last = 0;
+    let match;
+
+    while ((match = pattern.exec(originalText)) !== null) {
+
+        container.append(
+            document.createTextNode(
+                originalText.slice(last, match.index)
+            )
+        );
+
+        const mark = document.createElement("mark");
+
+        mark.textContent = match[0];
+
+        container.append(mark);
+
+        last = pattern.lastIndex;
+
+        if (!match[0].length) {
+            pattern.lastIndex++;
+        }
+
+    }
+
+    container.append(
+        document.createTextNode(
+            originalText.slice(last)
+        )
+    );
+
+    preview.classList.remove("hidden");
+
+}
+
+
+// ==========================================
+// GET SCAN HISTORY
+// ==========================================
+
+function getHistory() {
+
+    try {
+
+        const value = JSON.parse(
+            localStorage.getItem(HISTORY_KEY) || "[]"
+        );
+
+        return Array.isArray(value) ? value : [];
+
+    } catch {
+
+        return [];
+
+    }
+
+}
+
+
+// ==========================================
+// SAVE SCAN HISTORY
+// ==========================================
+
+function saveHistory(scan) {
+
+    const history = getHistory();
+
+    history.unshift(scan);
+
+    localStorage.setItem(
+        HISTORY_KEY,
+        JSON.stringify(history.slice(0, 30))
+    );
+
+    renderHistory();
+
+    updateAnalytics();
+
+}
+
+
+// ==========================================
+// DISPLAY SCAN HISTORY
+// ==========================================
+
+function renderHistory() {
+
+    const list = $("historyList");
+
+    const history = getHistory();
+
+    list.replaceChildren();
+
+    if (!history.length) {
+
+        const p = document.createElement("p");
+
+        p.className = "empty-history";
+
+        p.textContent = "No previous scans yet.";
+
+        list.append(p);
+
+        return;
+    }
+
+    history.forEach((scan, index) => {
+
+        const row = document.createElement("article");
+
+        row.className = "history-item";
+
+        const info = document.createElement("div");
+
+        const title = document.createElement("strong");
+
+        title.textContent =
+            `Comparison ${history.length - index}`;
+
+        const date = document.createElement("p");
+
+        date.textContent = scan.date
+            ? new Date(scan.date).toLocaleString()
+            : "Date unavailable";
+
+        info.append(title, date);
+
+        const score = document.createElement("span");
+
+        score.className = "history-score";
+
+        score.textContent =
+            `${Number(scan.similarity || 0).toFixed(2)}% similarity`;
+
+        row.append(info, score);
+
+        list.append(row);
+
+    });
+
+}
+
+
+// ==========================================
+// UPDATE ANALYTICS DASHBOARD
+// ==========================================
+
+function updateAnalytics() {
+
+    const history = getHistory();
+
+    $("totalScans").textContent = history.length;
+
+    const average = key => {
+
+        return history.length
+            ? history.reduce(
+                (sum, item) => sum + Number(item[key] || 0),
+                0
+            ) / history.length
+            : 0;
+
+    };
+
+    $("averageSimilarity").textContent =
+        `${average("similarity").toFixed(1)}%`;
+
+    $("averageOriginality").textContent =
+        `${average("originality").toFixed(1)}%`;
+
+    $("highestSimilarity").textContent =
+        `${(
+            history.length
+                ? Math.max(
+                    ...history.map(
+                        item => Number(item.similarity) || 0
+                    )
+                )
+                : 0
+        ).toFixed(1)}%`;
+
+    drawChart(history.slice(0, 10).reverse());
+
+}
+
+
+// ==========================================
+// DRAW ANALYTICS CHART
+// ==========================================
+
+function drawChart(history) {
+
+    const canvas = $("scanChart");
+
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+
+    const width = Math.max(280, rect.width || 600);
+
+    const height = 190;
+
+    const ratio = window.devicePixelRatio || 1;
+
+    canvas.width = width * ratio;
+
+    canvas.height = height * ratio;
+
+    canvas.style.height = `${height}px`;
+
+    const ctx = canvas.getContext("2d");
+
+    ctx.scale(ratio, ratio);
+
+    ctx.clearRect(0, 0, width, height);
+
+    const styles = getComputedStyle(document.body);
+
+    const line =
+        styles.getPropertyValue("--primary").trim() || "#477fbd";
+
+    const muted =
+        styles.getPropertyValue("--muted").trim() || "#aab8ca";
+
+    ctx.strokeStyle = muted;
+
+    ctx.globalAlpha = 0.22;
+
+    ctx.beginPath();
+
+    ctx.moveTo(28, 15);
+
+    ctx.lineTo(28, height - 28);
+
+    ctx.lineTo(width - 10, height - 28);
+
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+
+    if (!history.length) {
+
+        ctx.fillStyle = muted;
+
+        ctx.font = "13px Segoe UI";
+
+        ctx.fillText(
+            "Your recent comparisons will appear here.",
+            40,
+            90
+        );
+
+        return;
+    }
+
+    const points = history.map((item, index) => ({
+
+        x: 35 + index * (
+            (width - 60) / Math.max(1, history.length - 1)
+        ),
+
+        y: height - 30 - (
+            Math.max(
+                0,
+                Math.min(100, Number(item.similarity) || 0)
+            ) / 100
+        ) * (height - 55)
+
+    }));
+
+    ctx.strokeStyle = line;
+
+    ctx.lineWidth = 2.5;
+
+    ctx.beginPath();
+
+    points.forEach((point, index) => {
+
+        if (index) {
+            ctx.lineTo(point.x, point.y);
+        } else {
+            ctx.moveTo(point.x, point.y);
+        }
+
+    });
+
+    ctx.stroke();
+
+    points.forEach(point => {
+
+        ctx.fillStyle = line;
+
+        ctx.beginPath();
+
+        ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+
+        ctx.fill();
+
+    });
+
+    ctx.fillStyle = muted;
+
+    ctx.font = "11px Segoe UI";
+
+    ctx.fillText("0%", 3, height - 27);
+
+    ctx.fillText("100%", 2, 17);
+
 }
 
 
@@ -144,9 +498,10 @@ async function checkEngine() {
 // COMPARE TWO DOCUMENTS
 // ==========================================
 
-compareButton.addEventListener("click", async function () {
+compareButton.addEventListener("click", async () => {
 
     const text1 = document1.value.trim();
+
     const text2 = document2.value.trim();
 
     if (!text1 || !text2) {
@@ -157,220 +512,162 @@ compareButton.addEventListener("click", async function () {
     }
 
     compareButton.disabled = true;
-    compareButton.textContent = "Analyzing...";
 
-    // Hide previous results
+    compareButton.textContent = "Analyzing...";
 
     resultsSection.classList.add("hidden");
 
     try {
 
-        // Prepare document data
-
-        const formData = new URLSearchParams();
-
-        formData.append("document1", text1);
-        formData.append("document2", text2);
-
-        // Send request to C++ backend
-
-        const response = await fetch(`${API_URL}/compare`, {
-
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-
-            body: formData.toString()
-
+        const body = new URLSearchParams({
+            document1: text1,
+            document2: text2
         });
+
+        const response = await fetch(
+            `${API_URL}/compare`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/x-www-form-urlencoded"
+                },
+
+                body: body.toString()
+            }
+        );
 
         if (!response.ok) {
 
-            throw new Error(`HTTP error: ${response.status}`);
+            throw new Error(
+                `Server returned ${response.status}`
+            );
 
         }
 
         const data = await response.json();
-        saveScanHistory({
-    similarity: data.similarityPercentage,
-    originality: 100 - Number(data.similarityPercentage),
-    document1: text1,
-    document2: text2,
-    date: new Date().toISOString()
-});
 
         if (data.error) {
-
             throw new Error(data.error);
-
         }
 
-        // GET SIMILARITY SCORE
-
-        const similarity = Number(data.similarityPercentage);
+        const similarity = Number(
+            data.similarityPercentage
+        );
 
         if (!Number.isFinite(similarity)) {
 
-            throw new Error("Invalid similarity score received.");
+            throw new Error(
+                "The analysis engine returned an invalid similarity score."
+            );
 
         }
 
-        // Keep percentage between 0 and 100
+        const safe = Math.max(
+            0,
+            Math.min(100, similarity)
+        );
 
-        const safeSimilarity = Math.max(0, Math.min(100, similarity));
-
-        // CALCULATE ORIGINALITY
-
-        const originality = 100 - safeSimilarity;
-
-        // DISPLAY RESULTS
-
-        scoreElement.textContent =
-            safeSimilarity.toFixed(2) + "%";
-
-        originalityElement.textContent =
-            originality.toFixed(2) + "%";
-
-        progressBar.style.width =
-            safeSimilarity + "%";
-
-
-        // ==================================
-        // DISPLAY MATCHING PASSAGES
-        // ==================================
-
-        matchesList.replaceChildren();
-
-        if (
-            Array.isArray(data.matchingSequences) &&
-            data.matchingSequences.length > 0
-        ) {
-
-            data.matchingSequences.forEach(function (passage) {
-
-                const item = document.createElement("li");
-
-                item.textContent = passage;
-
-                matchesList.appendChild(item);
-
-            });
-
-        } else {
-
-            const item = document.createElement("li");
-
-            item.textContent = "No matching sequences found.";
-
-            matchesList.appendChild(item);
-
-        }
-        
-        // ==================================
-        // HIGHLIGHT MATCHING TEXT
-        // ==================================
-
-        function highlightMatchingText(originalText, passages, preview) {
-
-            const content = preview.querySelector(".highlighted-text");
-
-            content.replaceChildren();
-
-            const validPassages = passages
-                .filter(p => typeof p === "string" && p.trim())
-                .sort((a, b) => b.length - a.length);
-
-            if (validPassages.length === 0) {
-                preview.classList.add("hidden");
-                return;
-            }
-
-            const escapedPassages = validPassages.map(
-                p => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-            );
-
-            const pattern = new RegExp(
-                "(" + escapedPassages.join("|") + ")",
-                "gi"
-            );
-
-            let lastIndex = 0;
-            let match;
-
-            while ((match = pattern.exec(originalText)) !== null) {
-
-                content.appendChild(
-                    document.createTextNode(
-                        originalText.slice(lastIndex, match.index)
-                    )
-                );
-
-                const mark = document.createElement("mark");
-
-                mark.textContent = match[0];
-
-                content.appendChild(mark);
-
-                lastIndex = pattern.lastIndex;
-
-                if (match[0].length === 0) {
-                    pattern.lastIndex++;
-                }
-            }
-
-            content.appendChild(
-                document.createTextNode(originalText.slice(lastIndex))
-            );
-
-            preview.classList.remove("hidden");
-        }
+        const originality = 100 - safe;
 
         const passages = Array.isArray(data.matchingSequences)
             ? data.matchingSequences
             : [];
 
-        highlightMatchingText(text1, passages, matchPreview1);
-        highlightMatchingText(text2, passages, matchPreview2);
+        // DISPLAY SCORES
 
+        scoreElement.textContent =
+            `${safe.toFixed(2)}%`;
 
+        originalityElement.textContent =
+            `${originality.toFixed(2)}%`;
+
+        progressBar.style.width = `${safe}%`;
+
+        // DISPLAY MATCHING PASSAGES
+
+        matchesList.replaceChildren();
+
+        (
+            passages.length
+                ? passages
+                : ["No matching sequences found."]
+        ).forEach(passage => {
+
+            const li = document.createElement("li");
+
+            li.textContent = passage;
+
+            matchesList.append(li);
+
+        });
+
+        // HIGHLIGHT MATCHING TEXT
+
+        showHighlights(
+            text1,
+            passages,
+            matchPreview1
+        );
+
+        showHighlights(
+            text2,
+            passages,
+            matchPreview2
+        );
+
+        // SAVE LATEST RESULT
+
+        latestResult = {
+            similarity: safe,
+            originality: originality,
+            passages: passages,
+            text1: text1,
+            text2: text2,
+            date: new Date().toISOString()
+        };
+
+        // SAVE HISTORY
+
+        saveHistory({
+            similarity: safe,
+            originality: originality,
+            date: latestResult.date
+        });
 
         // SHOW RESULTS
 
         resultsSection.classList.remove("hidden");
 
         resultsSection.scrollIntoView({
-
             behavior: "smooth",
-
             block: "start"
-
         });
 
-        engineStatus.textContent =
-            "Analysis completed using the C++ engine.";
-
-        engineStatus.style.color = "#39d99a";
-
+        setStatus(
+            "Analysis completed using the C++ engine.",
+            "success"
+        );
 
     } catch (error) {
 
-        console.error("Comparison error:", error);
+        console.error(error);
 
-        alert(
-            "Could not compare the documents.\n\n" +
-            error.message +
-            "\n\nCheck that your C++ backend is running on port 8080."
+        setStatus(
+            "Unable to complete the comparison. Check your connection and try again.",
+            "error"
         );
 
-        checkEngine();
+        alert(
+            `Could not compare the documents.\n${error.message}`
+        );
 
     } finally {
 
         compareButton.disabled = false;
 
-        compareButton.textContent = "✦ Analyze Documents";
+        compareButton.textContent = "Analyze Documents";
 
     }
 
@@ -381,10 +678,19 @@ compareButton.addEventListener("click", async function () {
 // CLEAR ALL DOCUMENTS AND RESULTS
 // ==========================================
 
-clearButton.addEventListener("click", function () {
+clearButton.addEventListener("click", () => {
 
     document1.value = "";
+
     document2.value = "";
+
+    file1.value = "";
+
+    file2.value = "";
+
+    updateWordCounts();
+
+    latestResult = null;
 
     scoreElement.textContent = "0%";
 
@@ -396,13 +702,15 @@ clearButton.addEventListener("click", function () {
 
     resultsSection.classList.add("hidden");
 
-    matchPreview1.classList.add("hidden");
-matchPreview2.classList.add("hidden");
+    [matchPreview1, matchPreview2].forEach(preview => {
 
-matchPreview1.querySelector(".highlighted-text").replaceChildren();
-matchPreview2.querySelector(".highlighted-text").replaceChildren();
+        preview.classList.add("hidden");
 
-    updateWordCounts();
+        preview.querySelector(
+            ".highlighted-text"
+        ).replaceChildren();
+
+    });
 
 });
 
@@ -411,9 +719,236 @@ matchPreview2.querySelector(".highlighted-text").replaceChildren();
 // LIVE WORD COUNT
 // ==========================================
 
-document1.addEventListener("input", updateWordCounts);
+document1.addEventListener(
+    "input",
+    updateWordCounts
+);
 
-document2.addEventListener("input", updateWordCounts);
+document2.addEventListener(
+    "input",
+    updateWordCounts
+);
+
+
+// ==========================================
+// CLEAR SCAN HISTORY
+// ==========================================
+
+$("clearHistory").addEventListener("click", () => {
+
+    if (!getHistory().length) return;
+
+    if (
+        confirm(
+            "Clear all saved scan history from this browser?"
+        )
+    ) {
+
+        localStorage.removeItem(HISTORY_KEY);
+
+        renderHistory();
+
+        updateAnalytics();
+
+    }
+
+});
+
+
+// ==========================================
+// DOWNLOAD PDF REPORT
+// ==========================================
+
+$("downloadReport").addEventListener("click", () => {
+
+    if (!latestResult) {
+
+        alert(
+            "Please compare two documents before downloading a report."
+        );
+
+        return;
+    }
+
+    const result = latestResult;
+
+    const safe = value => {
+
+        return String(value).replace(
+            /[&<>"']/g,
+
+            char => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
+            }[char])
+
+        );
+
+    };
+
+    const report = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>PlagiScan AI Report</title>
+
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    color: #202b38;
+    padding: 36px;
+    line-height: 1.6;
+}
+
+h1 {
+    color: #244e70;
+}
+
+.metric {
+    display: inline-block;
+    margin: 18px 30px 18px 0;
+    padding: 16px;
+    border: 1px solid #ccd5df;
+    border-radius: 8px;
+}
+
+li {
+    margin: 8px 0;
+}
+
+mark {
+    background: #fff0b3;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>PlagiScan AI — Similarity Report</h1>
+
+<p>
+Generated:
+${safe(new Date(result.date).toLocaleString())}
+</p>
+
+<div class="metric">
+<b>Similarity</b>
+<h2>${result.similarity.toFixed(2)}%</h2>
+</div>
+
+<div class="metric">
+<b>Originality</b>
+<h2>${result.originality.toFixed(2)}%</h2>
+</div>
+
+<h2>Matching Passages</h2>
+
+<ul>
+${
+    (
+        result.passages.length
+            ? result.passages
+            : ["No matching sequences found."]
+    )
+    .map(passage => `<li>${safe(passage)}</li>`)
+    .join("")
+}
+</ul>
+
+<p>
+<em>
+This similarity result is an aid to review and does not
+independently establish plagiarism or misconduct.
+</em>
+</p>
+
+<script>
+window.onload = () => window.print();
+<\/script>
+
+</body>
+</html>
+`;
+
+    const win = window.open("", "_blank");
+
+    if (!win) {
+
+        alert(
+            "Please allow pop-ups to generate the report."
+        );
+
+        return;
+    }
+
+    win.document.open();
+
+    win.document.write(report);
+
+    win.document.close();
+
+});
+
+
+// ==========================================
+// LIGHT AND DARK MODE
+// ==========================================
+
+const themeToggle = $("themeToggle");
+
+function applyTheme(theme) {
+
+    const light = theme === "light";
+
+    document.body.classList.toggle(
+        "light-mode",
+        light
+    );
+
+    $("themeIcon").textContent =
+        light ? "☾" : "☀";
+
+    $("themeText").textContent =
+        light ? "Dark Mode" : "Light Mode";
+
+    localStorage.setItem(
+        "plagiscan_theme",
+        theme
+    );
+
+    updateAnalytics();
+
+}
+
+themeToggle.addEventListener("click", () => {
+
+    const currentTheme =
+        document.body.classList.contains("light-mode")
+            ? "light"
+            : "dark";
+
+    applyTheme(
+        currentTheme === "light" ? "dark" : "light"
+    );
+
+});
+
+
+// ==========================================
+// WINDOW RESIZE
+// ==========================================
+
+window.addEventListener("resize", () => {
+
+    updateAnalytics();
+
+});
 
 
 // ==========================================
@@ -422,613 +957,10 @@ document2.addEventListener("input", updateWordCounts);
 
 updateWordCounts();
 
+renderHistory();
+
+applyTheme(
+    localStorage.getItem("plagiscan_theme") || "dark"
+);
+
 checkEngine();
-
-// ==========================================
-// DOWNLOAD PLAGISCAN AI PDF REPORT
-// ==========================================
-
-const downloadReportButton = document.getElementById("downloadReport");
-
-if (downloadReportButton) {
-
-    downloadReportButton.addEventListener("click", function () {
-
-        // Get current analysis results
-
-        const similarity = scoreElement.textContent;
-        const originality = originalityElement.textContent;
-
-        const text1 = document1.value.trim();
-        const text2 = document2.value.trim();
-
-        if (!text1 || !text2) {
-            alert("Please compare two documents before downloading.");
-            return;
-        }
-
-        // Collect matching passages safely
-
-        const matches = Array.from(matchesList.children)
-            .map(item => item.textContent);
-
-        const escapeHTML = function (text) {
-            return String(text).replace(/[&<>"']/g, function (char) {
-                return {
-                    "&": "&amp;",
-                    "<": "&lt;",
-                    ">": "&gt;",
-                    '"': "&quot;",
-                    "'": "&#39;"
-                }[char];
-            });
-        };
-
-        // Create report content
-
-        const reportWindow = window.open("", "_blank");
-
-        if (!reportWindow) {
-            alert("Please allow pop-ups to generate your PDF report.");
-            return;
-        }
-
-        const reportHTML = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>PlagiScan AI - Analysis Report</title>
-
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    padding: 35px;
-                    color: #222;
-                    line-height: 1.6;
-                }
-
-                .header {
-                    border-bottom: 3px solid #8055dc;
-                    padding-bottom: 15px;
-                }
-
-                h1 {
-                    color: #7045c5;
-                    margin-bottom: 5px;
-                }
-
-                .subtitle {
-                    color: #666;
-                }
-
-                .scores {
-                    display: flex;
-                    gap: 20px;
-                    margin: 30px 0;
-                }
-
-                .score-card {
-                    flex: 1;
-                    padding: 20px;
-                    background: #f3efff;
-                    border-radius: 10px;
-                }
-
-                .score {
-                    font-size: 30px;
-                    font-weight: bold;
-                    color: #7045c5;
-                }
-
-                h2 {
-                    color: #7045c5;
-                    margin-top: 30px;
-                }
-
-                .document {
-                    padding: 15px;
-                    background: #f5f5f5;
-                    border: 1px solid #ddd;
-                    border-radius: 8px;
-                    white-space: pre-wrap;
-                    overflow-wrap: anywhere;
-                }
-
-                li {
-                    margin-bottom: 10px;
-                    overflow-wrap: anywhere;
-                }
-
-                .footer {
-                    margin-top: 45px;
-                    padding-top: 15px;
-                    border-top: 1px solid #ddd;
-                    color: #666;
-                    font-size: 12px;
-                }
-
-                @media print {
-                    body {
-                        padding: 10px;
-                    }
-
-                    .scores {
-                        display: flex;
-                    }
-                }
-            </style>
-        </head>
-
-        <body>
-
-            <div class="header">
-                <h1>PlagiScan AI</h1>
-                <div class="subtitle">
-                    Document Similarity Analysis Report
-                </div>
-                <p>Generated: ${escapeHTML(new Date().toLocaleString())}</p>
-            </div>
-
-            <div class="scores">
-
-                <div class="score-card">
-                    <div>Textual Similarity</div>
-                    <div class="score">${escapeHTML(similarity)}</div>
-                </div>
-
-                <div class="score-card">
-                    <div>Originality</div>
-                    <div class="score">${escapeHTML(originality)}</div>
-                </div>
-
-            </div>
-
-            <h2>Document 1</h2>
-            <div class="document">${escapeHTML(text1)}</div>
-
-            <h2>Document 2</h2>
-            <div class="document">${escapeHTML(text2)}</div>
-
-            <h2>Matching Passages</h2>
-
-            <ul>
-                ${matches.map(match =>
-                    `<li>${escapeHTML(match)}</li>`
-                ).join("")}
-            </ul>
-
-            <div class="footer">
-                This report is generated by PlagiScan AI.
-                Similarity is a screening signal and does not
-                independently establish plagiarism.
-            </div>
-
-            <script>
-                window.onload = function () {
-                    window.print();
-                };
-            <\/script>
-
-        </body>
-        </html>
-        `;
-
-        reportWindow.document.open();
-        reportWindow.document.write(reportHTML);
-        reportWindow.document.close();
-
-    });
-
-}
-// =====================================
-// SCAN HISTORY FUNCTIONS
-// =====================================
-
-function getScanHistory() {
-    try {
-        return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-    } catch (error) {
-        return [];
-    }
-}
-
-function saveScanHistory(scan) {
-    const history = getScanHistory();
-
-    history.unshift(scan);
-
-    // Keep only the latest 20 scans
-    localStorage.setItem(
-        HISTORY_KEY,
-        JSON.stringify(history.slice(0, 20))
-    );
-
-    displayScanHistory();
-}
-
-function displayScanHistory() {
-
-    const history = getScanHistory();
-
-    historyList.replaceChildren();
-
-    if (history.length === 0) {
-        const emptyMessage = document.createElement("p");
-        emptyMessage.className = "empty-history";
-        emptyMessage.textContent = "No previous scans yet.";
-
-        historyList.appendChild(emptyMessage);
-        return;
-    }
-
-    history.forEach((scan, index) => {
-
-        const card = document.createElement("div");
-        card.className = "history-item";
-
-        const heading = document.createElement("h3");
-        heading.textContent = "Scan #" + (index + 1);
-
-        const similarity = document.createElement("p");
-        similarity.textContent =
-            "Similarity: " + scan.similarity + "%";
-
-        const originality = document.createElement("p");
-        originality.textContent =
-            "Originality: " + scan.originality + "%";
-
-        const date = document.createElement("p");
-        date.className = "history-date";
-        date.textContent = new Date(scan.date).toLocaleString();
-
-        const documentInfo = document.createElement("p");
-        documentInfo.textContent =
-            "Document 1: " + scan.document1.substring(0, 100) +
-            (scan.document1.length > 100 ? "..." : "");
-
-        const documentInfo2 = document.createElement("p");
-        documentInfo2.textContent =
-            "Document 2: " + scan.document2.substring(0, 100) +
-            (scan.document2.length > 100 ? "..." : "");
-
-        card.append(
-            heading,
-            similarity,
-            originality,
-            documentInfo,
-            documentInfo2,
-            date
-        );
-
-        historyList.appendChild(card);
-    });
-}
-
-// Clear saved history
-clearHistoryButton.addEventListener("click", function () {
-
-    const confirmClear = confirm(
-        "Are you sure you want to delete all scan history?"
-    );
-
-    if (confirmClear) {
-        localStorage.removeItem(HISTORY_KEY);
-        displayScanHistory();
-    }
-});
-
-// Display saved history when website opens
-displayScanHistory();
-
-
-function getScanHistory() {
-    try {
-        return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-    } catch (error) {
-        return [];
-    }
-}
-
-function saveScanHistory(scan) {
-    const history = getScanHistory();
-
-    history.unshift(scan);
-
-    localStorage.setItem(
-        HISTORY_KEY,
-        JSON.stringify(history.slice(0, 20))
-    );
-
-    displayScanHistory();
-
-    updateAnalytics();
-}
-
-function displayScanHistory() {
-    const history = getScanHistory();
-
-    historyList.replaceChildren();
-
-    if (history.length === 0) {
-        const emptyMessage = document.createElement("p");
-        emptyMessage.className = "empty-history";
-        emptyMessage.textContent = "No previous scans yet.";
-
-        historyList.appendChild(emptyMessage);
-        return;
-    }
-
-    history.forEach((scan, index) => {
-        const card = document.createElement("div");
-        card.className = "history-item";
-
-        const heading = document.createElement("h3");
-        heading.textContent = "Scan #" + (index + 1);
-
-        const similarity = document.createElement("p");
-        similarity.textContent =
-            "Similarity: " + scan.similarity + "%";
-
-        const originality = document.createElement("p");
-        originality.textContent =
-            "Originality: " + scan.originality + "%";
-
-        const date = document.createElement("p");
-        date.className = "history-date";
-        date.textContent = new Date(scan.date).toLocaleString();
-
-        const doc1 = document.createElement("p");
-        doc1.textContent =
-            "Document 1: " + scan.document1.substring(0, 100);
-
-        const doc2 = document.createElement("p");
-        doc2.textContent =
-            "Document 2: " + scan.document2.substring(0, 100);
-
-        card.append(
-            heading,
-            similarity,
-            originality,
-            doc1,
-            doc2,
-            date
-        );
-
-        historyList.appendChild(card);
-    });
-}
-
-clearHistoryButton.addEventListener("click", function () {
-    const confirmClear = confirm(
-        "Are you sure you want to delete all scan history?"
-    );
-
-    if (confirmClear) {
-        localStorage.removeItem(HISTORY_KEY);
-        displayScanHistory();
-        updateAnalytics();
-    }
-});
-
-displayScanHistory();
-
-
-/* =====================================
-   ANALYTICS DASHBOARD FUNCTIONS
-===================================== */
-
-function updateAnalytics() {
-
-    const history = getScanHistory();
-
-    const total = history.length;
-
-    totalScansElement.textContent = total;
-
-    if (total === 0) {
-
-        averageSimilarityElement.textContent = "0%";
-        averageOriginalityElement.textContent = "0%";
-        highestSimilarityElement.textContent = "0%";
-
-        drawScanChart([]);
-        return;
-    }
-
-    const similarities = history.map(
-        scan => Number(scan.similarity) || 0
-    );
-
-    const originalities = history.map(
-        scan => Number(scan.originality) || 0
-    );
-
-    const averageSimilarity =
-        similarities.reduce((sum, value) => sum + value, 0) / total;
-
-    const averageOriginality =
-        originalities.reduce((sum, value) => sum + value, 0) / total;
-
-    const highestSimilarity = Math.max(...similarities);
-
-    averageSimilarityElement.textContent =
-        averageSimilarity.toFixed(2) + "%";
-
-    averageOriginalityElement.textContent =
-        averageOriginality.toFixed(2) + "%";
-
-    highestSimilarityElement.textContent =
-        highestSimilarity.toFixed(2) + "%";
-
-    drawScanChart(history.slice(0, 10).reverse());
-}
-
-/* DRAW SCAN ACTIVITY CHART */
-
-function drawScanChart(history) {
-
-    const canvas = scanChart;
-    const ctx = canvas.getContext("2d");
-
-    const width = canvas.clientWidth;
-    const height = 300;
-
-    const pixelRatio = window.devicePixelRatio || 1;
-
-    canvas.width = width * pixelRatio;
-    canvas.height = height * pixelRatio;
-
-    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-    ctx.clearRect(0, 0, width, height);
-
-    const padding = 40;
-    const chartWidth = width - padding * 2;
-    const chartHeight = height - padding * 2;
-
-    ctx.font = "12px Arial";
-    ctx.fillStyle = "#aaa4bd";
-    ctx.strokeStyle = "#39304f";
-    ctx.lineWidth = 1;
-
-    // Horizontal grid lines and labels
-
-    for (let i = 0; i <= 4; i++) {
-
-        const y = padding + (chartHeight / 4) * i;
-        const value = 100 - i * 25;
-
-        ctx.beginPath();
-        ctx.moveTo(padding, y);
-        ctx.lineTo(width - padding, y);
-        ctx.stroke();
-
-        ctx.fillText(value + "%", 5, y + 4);
-    }
-
-    if (history.length === 0) {
-
-        ctx.fillStyle = "#aaa4bd";
-        ctx.textAlign = "center";
-        ctx.fillText(
-            "Complete a scan to see activity",
-            width / 2,
-            height / 2
-        );
-
-        ctx.textAlign = "left";
-        return;
-    }
-
-    const values = history.map(
-        scan => Number(scan.similarity) || 0
-    );
-
-    const points = values.map((value, index) => {
-
-        const x = history.length === 1
-            ? padding + chartWidth / 2
-            : padding + (index / (values.length - 1)) * chartWidth;
-
-        const y = padding + chartHeight -
-            (value / 100) * chartHeight;
-
-        return { x, y, value };
-    });
-
-    // Draw the similarity line
-
-    ctx.beginPath();
-
-    points.forEach((point, index) => {
-
-        if (index === 0) {
-            ctx.moveTo(point.x, point.y);
-        } else {
-            ctx.lineTo(point.x, point.y);
-        }
-
-    });
-
-    ctx.strokeStyle = "#a78bfa";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // Draw data points
-
-    points.forEach((point, index) => {
-
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
-
-        ctx.fillStyle = "#c4b5fd";
-        ctx.fill();
-
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "center";
-
-        ctx.fillText(
-            point.value.toFixed(1) + "%",
-            point.x,
-            point.y - 12
-        );
-
-        ctx.fillStyle = "#aaa4bd";
-
-        ctx.fillText(
-            "Scan " + (index + 1),
-            point.x,
-            height - 8
-        );
-
-    });
-
-    ctx.textAlign = "left";
-}
-
-/* INITIALIZE ANALYTICS */
-
-updateAnalytics();
-
-/* UPDATE ANALYTICS WHEN HISTORY CHANGES */
-
-window.addEventListener("resize", updateAnalytics);
-
-
-// =====================================
-// LIGHT MODE / DARK MODE
-// =====================================
-
-const themeToggle = document.getElementById("themeToggle");
-const themeIcon = document.getElementById("themeIcon");
-const themeText = document.getElementById("themeText");
-
-function applyTheme(theme) {
-
-    if (theme === "light") {
-        document.body.classList.add("light-mode");
-        themeIcon.textContent = "🌙";
-        themeText.textContent = "Dark Mode";
-    } else {
-        document.body.classList.remove("light-mode");
-        themeIcon.textContent = "☀️";
-        themeText.textContent = "Light Mode";
-    }
-
-    localStorage.setItem("plagiscan_theme", theme);
-}
-
-const savedTheme = localStorage.getItem("plagiscan_theme") || "dark";
-
-applyTheme(savedTheme);
-
-themeToggle.addEventListener("click", function () {
-
-    const isLightMode =
-        document.body.classList.contains("light-mode");
-
-    applyTheme(isLightMode ? "dark" : "light");
-
-});
-
