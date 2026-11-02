@@ -307,8 +307,8 @@ int main() {
                 responseStatus = "204 No Content";
             }
             else if (method == "GET" && path == "/health") {
-                responseBody =
-                    "{\"status\":\"running\",\"engine\":\"C++\"}";
+                responseBody = "{\"status\":\"running\",\"engine\":\"C++\"}";
+                responseStatus = "200 OK";
             }
             else if (method == "POST" && path == "/compare") {
                 string document1 = getField(body, "document1");
